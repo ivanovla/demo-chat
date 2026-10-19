@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+.svelte-kit
+uploads
+coverage
+.env
+.DS_Store
+*.tsbuildinfo
