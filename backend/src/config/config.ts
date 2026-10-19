@@ -15,7 +15,7 @@ export function loadConfig(): AppConfig {
 
   return {
     port: Number(process.env.PORT ?? 3000),
-    mongoUri: process.env.MONGO_URI ?? 'mongodb://localhost:27017/chat',
+    mongoUri: process.env.MONGO_URI ?? 'mongodb://127.0.0.1:27017/chat',
     jwtSecret,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
     uploadDir: resolve(process.env.UPLOAD_DIR ?? 'uploads'),
