@@ -1,3 +1,4 @@
+import type { Ack, ClientToServerEvents, MessageDto, ServerToClientEvents } from '@chat/contracts';
 import { HttpException, Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
@@ -8,7 +9,7 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { AuthUser } from '../common/current-user.decorator';
 import { errorMessage, validateDto } from '../common/validate';
@@ -17,9 +18,14 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { SendMessagePayload } from '../messages/message.dto';
 import { MessagesService } from '../messages/messages.service';
 import { PresenceService } from '../realtime/presence.service';
-import { RealtimeService, userRoom } from '../realtime/realtime.service';
+import { ChatServer, RealtimeService, userRoom } from '../realtime/realtime.service';
 
-type AuthedSocket = Socket & { data: { user: AuthUser; expiresAt?: number } };
+interface SocketData {
+  user: AuthUser;
+  expiresAt?: number;
+}
+
+type AuthedSocket = Socket<ClientToServerEvents, ServerToClientEvents, object, SocketData>;
 
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
@@ -35,7 +41,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private readonly conversations: ConversationsService,
   ) {}
 
-  afterInit(server: Server) {
+  afterInit(server: ChatServer) {
     this.realtime.attach(server);
     server.use((socket, next) => {
       const token = socket.handshake.auth?.token;
@@ -74,7 +80,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   @SubscribeMessage('message:send')
-  async onSend(@ConnectedSocket() socket: AuthedSocket, @MessageBody() body: unknown) {
+  async onSend(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() body: unknown,
+  ): Promise<Ack<{ message: MessageDto }>> {
     try {
       const dto = await validateDto(SendMessagePayload, body);
       const message = await this.messages.send(
@@ -83,24 +92,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         dto.text,
         dto.clientId,
       );
-      return { ok: true, message };
+      return { ok: true as const, message };
     } catch (err) {
       return this.fail(err);
     }
   }
 
   @SubscribeMessage('conversation:read')
-  async onRead(@ConnectedSocket() socket: AuthedSocket, @MessageBody() body: unknown) {
+  async onRead(
+    @ConnectedSocket() socket: AuthedSocket,
+    @MessageBody() body: unknown,
+  ): Promise<Ack> {
     try {
       const dto = await validateDto(ConversationRef, body);
       await this.conversations.markRead(dto.conversationId, socket.data.user.id);
-      return { ok: true };
+      return { ok: true as const };
     } catch (err) {
       return this.fail(err);
     }
   }
 
-  private fail(err: unknown) {
+  private fail(err: unknown): { ok: false; error: string } {
     if (!(err instanceof HttpException)) this.logger.error(err instanceof Error ? err.stack : err);
     return { ok: false, error: errorMessage(err) };
   }

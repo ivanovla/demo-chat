@@ -1,21 +1,14 @@
+import type { ConversationRefPayload, CreateConversationRequest } from '@chat/contracts';
 import { IsMongoId } from 'class-validator';
-import { MessageDto } from '../messages/message.dto';
-import { UserDto } from '../users/user.dto';
 
-export interface ConversationDto {
-  id: string;
-  peer: UserDto;
-  lastMessage: MessageDto | null;
-  unreadCount: number;
-  updatedAt: string;
-}
+export type { ConversationDto } from '@chat/contracts';
 
-export class CreateConversationBody {
+export class CreateConversationBody implements CreateConversationRequest {
   @IsMongoId({ message: 'Invalid user id' })
   userId: string;
 }
 
-export class ConversationRef {
+export class ConversationRef implements ConversationRefPayload {
   @IsMongoId({ message: 'Invalid conversation id' })
   conversationId: string;
 }

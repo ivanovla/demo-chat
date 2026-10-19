@@ -5,5 +5,6 @@ export default {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter({ fallback: 'index.html' }),
+    alias: { '@chat/contracts': '../shared/contracts.d.ts' },
   },
 };

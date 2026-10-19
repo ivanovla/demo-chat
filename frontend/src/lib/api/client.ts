@@ -1,3 +1,5 @@
+import type { ApiErrorBody } from '@chat/contracts';
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -22,7 +24,7 @@ export const setUnauthorizedHandler = (fn: () => void) => {
 const NETWORK_ERROR = 'Network error. Check your connection and try again.';
 
 function toApiError(status: number, data: unknown, fallback: string): ApiError {
-  const body = (data ?? {}) as { message?: string | string[]; field?: string };
+  const body = (data ?? {}) as Partial<ApiErrorBody>;
   const message = Array.isArray(body.message) ? body.message[0] : body.message;
   if (status === 401 && token) onUnauthorized?.();
   return new ApiError(status, message || fallback, body.field);

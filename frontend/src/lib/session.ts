@@ -17,7 +17,6 @@ import { presence, setPresence } from './stores/presence';
 import { loadStories, resetStories } from './stores/stories';
 import { recorderOpen, sidebarTab, storyViewer } from './stores/ui';
 import { resetUsers } from './stores/users';
-import type { Conversation, Message } from './types';
 
 export function startRealtime() {
   const { token } = get(auth);
@@ -46,24 +45,19 @@ export function startRealtime() {
     void loadConversations().catch(() => undefined);
     void loadStories();
   });
-  socket.on(
-    'message:new',
-    ({ message, conversation }: { message: Message; conversation: Conversation }) => {
-      storeConversation(conversation);
-      receiveIncoming(message);
-      const me = get(auth).user?.id;
-      if (
-        message.senderId !== me &&
-        get(activeConversationId) === conversation.id &&
-        document.hasFocus()
-      ) {
-        markConversationRead(conversation.id);
-      }
-    },
-  );
-  socket.on('presence', ({ userId, online }: { userId: string; online: boolean }) =>
-    setPresence(userId, online),
-  );
+  socket.on('message:new', ({ message, conversation }) => {
+    storeConversation(conversation);
+    receiveIncoming(message);
+    const me = get(auth).user?.id;
+    if (
+      message.senderId !== me &&
+      get(activeConversationId) === conversation.id &&
+      document.hasFocus()
+    ) {
+      markConversationRead(conversation.id);
+    }
+  });
+  socket.on('presence', ({ userId, online }) => setPresence(userId, online));
   socket.on('story:new', () => void loadStories());
 }
 

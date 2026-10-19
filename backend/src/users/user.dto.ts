@@ -1,12 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
-export interface UserDto {
-  id: string;
-  username: string;
-  online: boolean;
-  email?: string;
-}
+export type { UserDto } from '@chat/contracts';
 
 export class ListUsersQuery {
   @IsOptional()

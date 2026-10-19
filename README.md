@@ -123,6 +123,7 @@ frontend/                 SvelteKit SPA
   src/lib/components/     UI-компоненты
   src/styles/             дизайн-токены и стили
   nginx.conf              раздача SPA и прокси на backend
+shared/contracts.d.ts     общие типы API и WebSocket-событий
 docker-compose.yml        mongo + backend + frontend
 ```
 
@@ -157,6 +158,17 @@ docker-compose.yml        mongo + backend + frontend
 | сервер → клиент | `message:new` | `{ message, conversation }` |
 | сервер → клиент | `presence` | `{ userId, online }` |
 | сервер → клиент | `story:new` | `{ userId }` |
+
+## Общие типы
+
+Контракт между backend и frontend описан в одном файле, [`shared/contracts.d.ts`](shared/contracts.d.ts):
+- формы ответов (`UserDto`, `MessageDto`, `ConversationDto`, `StoryDto`, …);
+- тела запросов (`RegisterRequest`, `SendMessageRequest`, …) и формат ошибки;
+- карты WebSocket-событий `ClientToServerEvents` и `ServerToClientEvents` вместе с payload и ack.
+
+Обе стороны подключают файл как `@chat/contracts` (alias в `backend/tsconfig.json` и `frontend/svelte.config.js`) и импортируют из него только типы (`import type`), поэтому в сборку он не попадает. Классы валидации на backend объявлены через `implements RegisterRequest` и т.п. Socket.io типизирован на обеих сторонах: `Server<ClientToServerEvents, ServerToClientEvents>` на backend, `Socket<ServerToClientEvents, ClientToServerEvents>` на клиенте. Если поменять поле или событие только на одной стороне, сломается `tsc` или `svelte-check`.
+
+Общий файл типов — это вариант «для практики»: он простой и покрывает и REST, и WebSocket. В реальном проекте REST-часть разумнее синхронизировать через OpenAPI: `@nestjs/swagger` генерирует схему из DTO, `openapi-typescript` или `orval` генерируют из неё клиентские типы и SDK, а заодно появляется Swagger UI. WebSocket-события OpenAPI не описывает, для них остаются общие типы или AsyncAPI.
 
 ## Решения и ограничения
 

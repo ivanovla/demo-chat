@@ -1,0 +1,9 @@
+.git
+docs
+**/node_modules
+**/dist
+**/build
+**/.svelte-kit
+**/uploads
+**/coverage
+**/.env

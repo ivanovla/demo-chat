@@ -10,18 +10,16 @@ import {
   Min,
 } from 'class-validator';
 
+import type {
+  SendMessagePayload as SendMessageContract,
+  SendMessageRequest,
+} from '@chat/contracts';
+
+export type { MessageDto, MessagePage } from '@chat/contracts';
+
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
-export interface MessageDto {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  text: string;
-  clientId?: string;
-  createdAt: string;
-}
-
-export class SendMessageBody {
+export class SendMessageBody implements SendMessageRequest {
   @Transform(trim)
   @IsString()
   @IsNotEmpty({ message: 'Message cannot be empty' })
@@ -34,7 +32,7 @@ export class SendMessageBody {
   clientId?: string;
 }
 
-export class SendMessagePayload extends SendMessageBody {
+export class SendMessagePayload extends SendMessageBody implements SendMessageContract {
   @IsMongoId({ message: 'Invalid conversation id' })
   conversationId: string;
 }

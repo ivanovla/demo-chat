@@ -1,10 +1,12 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import { UserDto } from '../users/user.dto';
+import type { LoginRequest, RegisterRequest } from '@chat/contracts';
+
+export type { AuthResponse } from '@chat/contracts';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
-export class RegisterDto {
+export class RegisterDto implements RegisterRequest {
   @Transform(trim)
   @IsEmail({}, { message: 'Enter a valid email address' })
   @MaxLength(254)
@@ -21,7 +23,7 @@ export class RegisterDto {
   password: string;
 }
 
-export class LoginDto {
+export class LoginDto implements LoginRequest {
   @Transform(trim)
   @IsEmail({}, { message: 'Enter a valid email address' })
   email: string;
@@ -29,11 +31,6 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty({ message: 'Enter your password' })
   password: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  user: UserDto;
 }
 
 export interface JwtPayload {

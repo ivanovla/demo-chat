@@ -1,13 +1,26 @@
-import type { AuthResponse, Conversation, Message, Story, StoryGroup, User } from '../types';
+import type {
+  CreateConversationRequest,
+  LoginRequest,
+  RegisterRequest,
+  SendMessageRequest,
+} from '@chat/contracts';
+import type {
+  AuthResponse,
+  Conversation,
+  Message,
+  MessagePage,
+  Story,
+  StoryGroup,
+  User,
+} from '../types';
 import { api, upload } from './client';
 
 export { ApiError, errorText, setToken, setUnauthorizedHandler } from './client';
 
 export const authApi = {
-  register: (body: { email: string; username: string; password: string }) =>
+  register: (body: RegisterRequest) =>
     api<AuthResponse>('/auth/register', { method: 'POST', body }),
-  login: (body: { email: string; password: string }) =>
-    api<AuthResponse>('/auth/login', { method: 'POST', body }),
+  login: (body: LoginRequest) => api<AuthResponse>('/auth/login', { method: 'POST', body }),
   me: () => api<User>('/auth/me'),
 };
 
@@ -19,14 +32,20 @@ export const usersApi = {
 export const conversationsApi = {
   list: () => api<Conversation[]>('/conversations'),
   open: (userId: string) =>
-    api<Conversation>('/conversations', { method: 'POST', body: { userId } }),
+    api<Conversation>('/conversations', {
+      method: 'POST',
+      body: { userId } satisfies CreateConversationRequest,
+    }),
   read: (id: string) => api<void>(`/conversations/${id}/read`, { method: 'POST' }),
   messages: (id: string, before?: string, limit = 30) =>
-    api<{ items: Message[]; hasMore: boolean }>(
+    api<MessagePage>(
       `/conversations/${id}/messages?limit=${limit}${before ? `&before=${before}` : ''}`,
     ),
   send: (id: string, text: string, clientId: string) =>
-    api<Message>(`/conversations/${id}/messages`, { method: 'POST', body: { text, clientId } }),
+    api<Message>(`/conversations/${id}/messages`, {
+      method: 'POST',
+      body: { text, clientId } satisfies SendMessageRequest,
+    }),
 };
 
 export const storiesApi = {
