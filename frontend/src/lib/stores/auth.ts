@@ -8,6 +8,7 @@ export interface AuthState {
   user: User | null;
   token: string | null;
   ready: boolean;
+  unreachable?: boolean;
 }
 
 export const auth = writable<AuthState>({ user: null, token: null, ready: false });
@@ -42,12 +43,13 @@ export async function initAuth() {
     return;
   }
   setToken(token);
+  auth.set({ user: null, token, ready: false });
   try {
     const user = await authApi.me();
     auth.set({ user, token, ready: true });
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) clearAuth();
-    else auth.set({ user: null, token: null, ready: true });
+    else auth.set({ user: null, token, ready: false, unreachable: true });
   }
 }
 

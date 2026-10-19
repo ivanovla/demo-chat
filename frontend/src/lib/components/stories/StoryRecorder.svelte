@@ -54,11 +54,15 @@
       return;
     }
     step = 'requesting';
+    const video = { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } };
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } },
-        audio: true,
-      });
+      stream = await navigator.mediaDevices
+        .getUserMedia({ video, audio: true })
+        .catch((err: DOMException) =>
+          err.name === 'NotFoundError'
+            ? navigator.mediaDevices.getUserMedia({ video })
+            : Promise.reject(err),
+        );
       if (!$recorderOpen) return stopStream();
       step = 'live';
     } catch {
@@ -71,7 +75,12 @@
     if (!stream) return;
     chunks = [];
     const mimeType = pickRecorderMime();
-    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    try {
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch {
+      toast('error', 'Recording isn’t supported in this browser.');
+      return;
+    }
     recorder.ondataavailable = (e) => {
       if (e.data.size) chunks.push(e.data);
     };

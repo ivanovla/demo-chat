@@ -73,7 +73,7 @@
   aria-label="Messages with {peer.username}"
 >
   <div class="messages-inner">
-    {#if thread.status === 'loading' || thread.status === 'idle'}
+    {#if (thread.status === 'loading' || thread.status === 'idle') && thread.items.length === 0}
       <div class="sk-messages" aria-hidden="true">
         {#each skeleton as cls, i (i)}<span class="skeleton sk-bubble {cls}"></span>{/each}
       </div>

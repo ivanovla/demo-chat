@@ -1,9 +1,6 @@
-<script lang="ts" module>
-  const drafts = new Map<string, string>();
-</script>
-
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { getDraft, setDraft } from '$lib/stores/drafts';
   import Icon from '../ui/Icon.svelte';
 
   const MAX = 4000;
@@ -14,7 +11,7 @@
     onsend,
   }: { conversationId: string; peerName: string; onsend: (text: string) => void } = $props();
 
-  let text = $state(untrack(() => drafts.get(conversationId)) ?? '');
+  let text = $state(untrack(() => getDraft(conversationId)));
   let input = $state<HTMLTextAreaElement>();
 
   const trimmed = $derived(text.trim());
@@ -22,14 +19,14 @@
   const disabled = $derived(!trimmed || tooLong);
 
   $effect(() => {
-    drafts.set(conversationId, text);
+    setDraft(conversationId, text);
     if (!input) return;
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
   });
 
   $effect(() => {
-    input?.focus();
+    if (matchMedia('(pointer: fine)').matches) input?.focus();
   });
 
   function submit(e?: Event) {

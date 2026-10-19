@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 export const getSocket = () => socket;
 
 export function openSocket(token: string): Socket {
-  socket?.disconnect();
+  closeSocket();
   socket = io({ auth: { token }, transports: ['websocket', 'polling'] });
   return socket;
 }

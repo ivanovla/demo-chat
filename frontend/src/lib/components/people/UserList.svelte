@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { errorText } from '$lib/api';
   import { openConversationWith } from '$lib/stores/conversations';
@@ -19,8 +20,10 @@
     const q = query;
     if (first) {
       first = false;
-      if ($users.status === 'idle' || $users.status === 'error' || q !== $users.query)
-        void searchUsers(q);
+      untrack(() => {
+        if ($users.status === 'idle' || $users.status === 'error' || q !== $users.query)
+          void searchUsers(q);
+      });
       return;
     }
     const id = setTimeout(() => searchUsers(q), 250);

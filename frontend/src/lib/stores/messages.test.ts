@@ -5,6 +5,7 @@ import {
   addPending,
   emptyThread,
   failMessage,
+  mergeLatest,
   prependOlder,
   receiveMessage,
 } from './messages';
@@ -70,5 +71,47 @@ describe('message thread reducers', () => {
     t = prependOlder(t, [server('m1'), server('m2'), server('m3')], false);
     expect(t.items.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
     expect(t.hasMore).toBe(false);
+  });
+});
+
+describe('mergeLatest', () => {
+  const at = (min: number) => new Date(2026, 0, 1, 12, min).toISOString();
+  const srv = (id: string, min: number, clientId?: string): Message => ({
+    id,
+    conversationId: 'c1',
+    senderId: 'me',
+    text: id,
+    clientId,
+    createdAt: at(min),
+  });
+
+  it('prefers the server copy of a local failed message', () => {
+    let t = addPending(emptyThread(), {
+      clientId: 'tmp-1',
+      conversationId: 'c1',
+      senderId: 'me',
+      text: 'hi',
+    });
+    t = failMessage(t, 'tmp-1');
+    t = mergeLatest(t, [srv('m1', 1), srv('m2', 2, 'tmp-1')], false);
+    expect(t.items.map((m) => [m.id, m.status])).toEqual([
+      ['m1', 'sent'],
+      ['m2', 'sent'],
+    ]);
+  });
+
+  it('keeps live messages that arrived after the snapshot and unsent local ones', () => {
+    let t = receiveMessage(emptyThread(), srv('m3', 3));
+    t = addPending(t, { clientId: 'tmp-9', conversationId: 'c1', senderId: 'me', text: 'later' });
+    t = mergeLatest(t, [srv('m1', 1), srv('m2', 2)], false);
+    expect(t.items.map((m) => m.id)).toEqual(['m1', 'm2', 'm3', 'tmp-9']);
+  });
+
+  it('keeps older pages that were already loaded', () => {
+    let t = receiveMessage(emptyThread(), srv('m1', 1));
+    t = { ...t, hasMore: true };
+    t = mergeLatest(t, [srv('m2', 2), srv('m3', 3)], true);
+    expect(t.items.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(t.hasMore).toBe(true);
   });
 });

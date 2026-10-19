@@ -62,6 +62,26 @@ export function prependOlder(t: Thread, older: Message[], hasMore: boolean): Thr
   return { ...t, items: [...older.filter((m) => !known.has(m.id)).map(sent), ...t.items], hasMore };
 }
 
+export function mergeLatest(t: Thread, page: Message[], hasMore: boolean): Thread {
+  const ids = new Set(page.map((m) => m.id));
+  const clientIds = new Set(page.map((m) => m.clientId).filter(Boolean));
+  const first = page[0]?.createdAt;
+  const last = page.at(-1)?.createdAt;
+  const fresh = (m: ChatMessage) => !ids.has(m.id) && !(m.clientId && clientIds.has(m.clientId));
+  const older = first
+    ? t.items.filter((m) => m.status === 'sent' && fresh(m) && m.createdAt < first)
+    : [];
+  const newer = t.items.filter(
+    (m) => fresh(m) && (m.status !== 'sent' || !last || m.createdAt > last),
+  );
+  return {
+    ...t,
+    items: [...older, ...page.map(sent), ...newer],
+    hasMore: older.length ? t.hasMore : hasMore,
+    status: 'ready',
+  };
+}
+
 export const threads = writable<Record<string, Thread>>({});
 
 function patch(convId: string, fn: (t: Thread) => Thread) {
@@ -74,18 +94,7 @@ export async function loadThread(convId: string, force = false) {
   patch(convId, (t) => ({ ...t, status: t.items.length ? t.status : 'loading' }));
   try {
     const page = await conversationsApi.messages(convId);
-    patch(convId, (t) => {
-      const pending = t.items.filter((m) => m.status !== 'sent');
-      let next: Thread = {
-        ...t,
-        items: page.items.map(sent),
-        hasMore: page.hasMore,
-        status: 'ready',
-      };
-      for (const p of pending)
-        next = { ...next, items: [...next.items.filter((m) => m.clientId !== p.clientId), p] };
-      return next;
-    });
+    patch(convId, (t) => mergeLatest(t, page.items, page.hasMore));
   } catch (err) {
     patch(convId, (t) => ({ ...t, status: t.items.length ? 'ready' : 'error' }));
     toast('error', errorText(err));
@@ -150,6 +159,17 @@ export function retryMessage(convId: string, clientId: string) {
 export function receiveIncoming(message: Message) {
   if (!get(threads)[message.conversationId]) return;
   patch(message.conversationId, (t) => receiveMessage(t, message));
+}
+
+export function invalidateThreads(except: string | null) {
+  threads.update((all) =>
+    Object.fromEntries(
+      Object.entries(all).map(([id, t]) => [
+        id,
+        id === except ? t : { ...t, status: 'idle' as const },
+      ]),
+    ),
+  );
 }
 
 export function resetThreads() {

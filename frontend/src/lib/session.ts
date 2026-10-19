@@ -11,9 +11,11 @@ import {
   resetConversations,
   storeConversation,
 } from './stores/conversations';
-import { loadThread, receiveIncoming, resetThreads } from './stores/messages';
+import { clearDrafts } from './stores/drafts';
+import { invalidateThreads, loadThread, receiveIncoming, resetThreads } from './stores/messages';
 import { presence, setPresence } from './stores/presence';
 import { loadStories, resetStories } from './stores/stories';
+import { recorderOpen, sidebarTab, storyViewer } from './stores/ui';
 import { resetUsers } from './stores/users';
 import type { Conversation, Message } from './types';
 
@@ -21,17 +23,14 @@ export function startRealtime() {
   const { token } = get(auth);
   if (!token) return;
   const socket = openSocket(token);
-  let connectedOnce = false;
 
   socket.on('connect', () => {
     markConnected();
-    if (connectedOnce) {
-      void loadConversations().catch(() => undefined);
-      void loadStories();
-      const active = get(activeConversationId);
-      if (active) void loadThread(active, true);
-    }
-    connectedOnce = true;
+    const active = get(activeConversationId);
+    invalidateThreads(active);
+    if (active) void loadThread(active, true);
+    void loadConversations().catch(() => undefined);
+    void loadStories();
   });
   socket.on('disconnect', () => markReconnecting());
   socket.on('connect_error', (err) => {
@@ -68,6 +67,10 @@ export function logout() {
   resetStories();
   resetUsers();
   presence.set({});
+  clearDrafts();
+  recorderOpen.set(false);
+  storyViewer.set(null);
+  sidebarTab.set('chats');
   void goto('/login');
 }
 

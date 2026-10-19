@@ -27,7 +27,7 @@ export function buildRows(messages: ChatMessage[], meId: string, now = Date.now(
     if (!prev || dayKey(prev.createdAt) !== dayKey(m.createdAt)) {
       rows.push({
         type: 'day',
-        key: `day-${dayKey(m.createdAt)}`,
+        key: `day-${m.clientId ?? m.id}`,
         label: dayLabel(m.createdAt, now),
       });
     }

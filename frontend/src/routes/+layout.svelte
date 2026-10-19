@@ -6,6 +6,8 @@
   import '../styles/chat.css';
   import '../styles/stories.css';
   import { onMount } from 'svelte';
+  import EmptyState from '$lib/components/ui/EmptyState.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
   import Toasts from '$lib/components/ui/Toasts.svelte';
   import { auth, initAuth } from '$lib/stores/auth';
 
@@ -19,6 +21,17 @@
 <div class="app">
   {#if $auth.ready}
     {@render children()}
+  {:else if $auth.unreachable}
+    <EmptyState
+      icon="alert"
+      error
+      title="Can’t reach the server"
+      text="Check your connection and try again."
+    >
+      <button type="button" class="btn btn-secondary" onclick={() => initAuth()}>
+        <Icon name="retry" size="sm" />Retry
+      </button>
+    </EmptyState>
   {:else}
     <div class="boot" role="status">
       <span class="spinner spinner-lg" aria-hidden="true"></span><span class="sr-only">Loading</span

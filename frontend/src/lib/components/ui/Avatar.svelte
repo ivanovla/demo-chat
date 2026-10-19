@@ -21,7 +21,11 @@
 {#if online}
   <span class="avatar-wrap">
     {@render face()}
-    <span class="presence {presenceSize === 'sm' ? 'presence-sm' : ''}" aria-label="Online"></span>
+    <span
+      class="presence {presenceSize === 'sm' ? 'presence-sm' : ''}"
+      role="img"
+      aria-label="Online"
+    ></span>
   </span>
 {:else}
   {@render face()}

@@ -1,4 +1,4 @@
-import { derived, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 import { storiesApi } from '../api';
 import type { LoadStatus, StoryGroup } from '../types';
 import { auth } from './auth';
@@ -36,19 +36,18 @@ export async function loadStories() {
 }
 
 export function markStorySeen(storyId: string) {
-  let changed = false;
+  const story = get(stories)
+    .groups.flatMap((g) => g.stories)
+    .find((s) => s.id === storyId);
+  if (!story || story.seen) return;
   stories.update((s) => ({
     ...s,
     groups: s.groups.map((g) => ({
       ...g,
-      stories: g.stories.map((st) => {
-        if (st.id !== storyId || st.seen) return st;
-        changed = true;
-        return { ...st, seen: true };
-      }),
+      stories: g.stories.map((st) => (st.id === storyId ? { ...st, seen: true } : st)),
     })),
   }));
-  if (changed) void storiesApi.view(storyId).catch(() => undefined);
+  void storiesApi.view(storyId).catch(() => undefined);
 }
 
 export async function publishStory(

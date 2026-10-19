@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { markStorySeen, stories } from '$lib/stores/stories';
   import { storyViewer } from '$lib/stores/ui';
   import { relAgo } from '$lib/utils/format';
@@ -15,7 +15,7 @@
   );
 
   let ui = $state(0);
-  let si = $state(firstUnseen(0));
+  let si = $state(untrack(() => firstUnseen(0)));
   let progress = $state(0);
   let paused = $state(false);
   let loading = $state(true);
@@ -27,10 +27,7 @@
   const story = $derived(group?.stories[si]);
 
   function firstUnseen(index: number) {
-    const g = queue.map((id) => $stories.groups.find((x) => x.user.id === id)).filter(Boolean)[
-      index
-    ];
-    const i = g?.stories.findIndex((s) => !s.seen) ?? -1;
+    const i = groups[index]?.stories.findIndex((s) => !s.seen) ?? -1;
     return i < 0 ? 0 : i;
   }
 
@@ -54,7 +51,12 @@
   function prev() {
     if (si > 0) go(ui, si - 1);
     else if (ui > 0) go(ui - 1, (groups[ui - 1]?.stories.length ?? 1) - 1);
-    else go(ui, 0);
+    else restart();
+  }
+
+  function restart() {
+    progress = 0;
+    if (video) video.currentTime = 0;
   }
 
   function jumpUser(delta: number) {
