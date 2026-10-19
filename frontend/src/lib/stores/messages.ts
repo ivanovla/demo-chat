@@ -1,6 +1,6 @@
 import { get, writable } from 'svelte/store';
 import { ApiError, conversationsApi, errorText } from '../api';
-import { getSocket } from '../socket';
+import { getSocket, socketReady } from '../socket';
 import type { ChatMessage, LoadStatus, Message } from '../types';
 import { applyOwnMessage } from './conversations';
 import { toast } from './toasts';
@@ -104,6 +104,7 @@ export function loadThread(convId: string, force = false): Promise<void> {
 async function fetchLatest(convId: string) {
   patch(convId, (t) => ({ ...t, status: t.items.length ? t.status : 'loading' }));
   try {
+    await socketReady();
     const page = await conversationsApi.messages(convId);
     patch(convId, (t) => mergeLatest(t, page.items, page.hasMore));
   } catch (err) {

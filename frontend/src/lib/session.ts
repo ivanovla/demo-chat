@@ -24,12 +24,16 @@ export function startRealtime() {
   if (!token) return;
   const socket = openSocket(token);
   let loadedWithoutSocket = false;
+  let connectedBefore = false;
 
   socket.on('connect', () => {
     markConnected();
-    const active = get(activeConversationId);
-    invalidateThreads(active);
-    if (active) void loadThread(active, true);
+    if (connectedBefore) {
+      const active = get(activeConversationId);
+      invalidateThreads(active);
+      if (active) void loadThread(active, true);
+    }
+    connectedBefore = true;
     void loadConversations().catch(() => undefined);
     void loadStories();
   });
