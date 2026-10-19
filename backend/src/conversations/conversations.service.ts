@@ -84,6 +84,7 @@ export class ConversationsService implements OnModuleInit {
   async applyMessage(
     conv: ConversationDocument,
     message: MessageDocument,
+    countUnread = true,
   ): Promise<ConversationDocument> {
     const recipientId = this.peerId(conv, message.senderId.toString());
     await this.conversations
@@ -102,11 +103,10 @@ export class ConversationsService implements OnModuleInit {
       )
       .exec();
     const updated = await this.conversations
-      .findByIdAndUpdate(
-        conv._id,
-        { $inc: { [`unread.${recipientId}`]: 1 } },
-        { new: true, timestamps: false },
-      )
+      .findByIdAndUpdate(conv._id, countUnread ? { $inc: { [`unread.${recipientId}`]: 1 } } : {}, {
+        new: true,
+        timestamps: false,
+      })
       .exec();
     return updated!;
   }
@@ -122,10 +122,16 @@ export class ConversationsService implements OnModuleInit {
       .exec();
   }
 
-  async toDtoFor(conv: ConversationDocument, meId: string): Promise<ConversationDto> {
-    const peer = await this.users.findById(this.peerId(conv, meId));
-    if (!peer) throw new NotFoundException('User not found');
-    return this.toDto(conv, meId, peer);
+  async projections(conv: ConversationDocument): Promise<Map<string, ConversationDto>> {
+    const users = await this.users.findByIds(conv.participants);
+    const byId = new Map(users.map((u) => [u.id as string, u]));
+    const result = new Map<string, ConversationDto>();
+    for (const p of conv.participants) {
+      const meId = p.toString();
+      const peer = byId.get(this.peerId(conv, meId));
+      if (peer) result.set(meId, this.toDto(conv, meId, peer));
+    }
+    return result;
   }
 
   peerId(conv: ConversationDocument, meId: string): string {

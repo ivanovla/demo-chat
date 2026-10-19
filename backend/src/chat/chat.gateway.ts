@@ -19,7 +19,9 @@ import { MessagesService } from '../messages/messages.service';
 import { PresenceService } from '../realtime/presence.service';
 import { RealtimeService, userRoom } from '../realtime/realtime.service';
 
-type AuthedSocket = Socket & { data: { user: AuthUser } };
+type AuthedSocket = Socket & { data: { user: AuthUser; expiresAt?: number } };
+
+const MAX_TIMER_MS = 2 ** 31 - 1;
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -42,6 +44,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         .verifyToken(token)
         .then((payload) => {
           socket.data.user = { id: payload.sub, username: payload.username };
+          socket.data.expiresAt = payload.exp ? payload.exp * 1000 : undefined;
           next();
         })
         .catch(() => next(new Error('Unauthorized')));
@@ -50,6 +53,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   async handleConnection(socket: AuthedSocket) {
     const { id } = socket.data.user;
+    const { expiresAt } = socket.data;
+    if (expiresAt) {
+      const timer = setTimeout(
+        () => socket.disconnect(true),
+        Math.min(Math.max(expiresAt - Date.now(), 0), MAX_TIMER_MS),
+      );
+      socket.once('disconnect', () => clearTimeout(timer));
+    }
     await socket.join(userRoom(id));
     if (this.presence.connect(id))
       this.realtime.broadcast('presence', { userId: id, online: true });

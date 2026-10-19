@@ -39,4 +39,5 @@ export interface AuthResponse {
 export interface JwtPayload {
   sub: string;
   username: string;
+  exp?: number;
 }

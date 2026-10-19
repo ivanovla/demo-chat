@@ -30,10 +30,8 @@ export class MessagesService implements OnModuleInit {
     const conv = await this.conversations.getForParticipant(conversationId, meId);
     const senderId = new Types.ObjectId(meId);
 
-    const existing = clientId ? await this.messages.findOne({ senderId, clientId }).exec() : null;
-    if (existing) return this.toDto(existing);
-
     let message: MessageDocument;
+    let retried = false;
     try {
       message = await this.messages.create({
         conversationId: conv._id,
@@ -42,21 +40,21 @@ export class MessagesService implements OnModuleInit {
         clientId,
       });
     } catch (err) {
-      const duplicate =
+      const existing =
         isDuplicateKeyError(err) && (await this.messages.findOne({ senderId, clientId }).exec());
-      if (duplicate) return this.toDto(duplicate);
-      throw err;
+      if (!existing) throw err;
+      if (!existing.conversationId.equals(conv._id)) {
+        throw new BadRequestException('clientId is already used in another conversation');
+      }
+      message = existing;
+      retried = true;
     }
-    const updated = await this.conversations.applyMessage(conv, message);
-    const dto = this.toDto(message);
 
-    await Promise.all(
-      updated.participants.map(async (participant) => {
-        const userId = participant.toString();
-        const conversation = await this.conversations.toDtoFor(updated, userId);
-        this.realtime.toUser(userId, 'message:new', { message: dto, conversation });
-      }),
-    );
+    const updated = await this.conversations.applyMessage(conv, message, !retried);
+    const dto = this.toDto(message);
+    for (const [userId, conversation] of await this.conversations.projections(updated)) {
+      this.realtime.toUser(userId, 'message:new', { message: dto, conversation });
+    }
     return dto;
   }
 

@@ -1,3 +1,4 @@
+import { JwtService } from '@nestjs/jwt';
 import { io, Socket } from 'socket.io-client';
 import { bearer, createTestApp, registerUser, TestContext, TestUser } from './helpers';
 
@@ -140,6 +141,44 @@ describe('Chat gateway', () => {
     await sa.emitWithAck('message:send', payload);
     const after = (await ctx.http.get('/api/conversations').set(bearer(b)).expect(200)).body;
     expect(after.find((x: { id: string }) => x.id === conv.id).unreadCount).toBe(before);
+  });
+
+  it('rejects reusing a clientId in another conversation', async () => {
+    const c = await registerUser(ctx);
+    const ab = (
+      await ctx.http
+        .post('/api/conversations')
+        .set(bearer(a))
+        .send({ userId: b.user.id })
+        .expect(201)
+    ).body;
+    const ac = (
+      await ctx.http
+        .post('/api/conversations')
+        .set(bearer(a))
+        .send({ userId: c.user.id })
+        .expect(201)
+    ).body;
+    const sa = await connect(a);
+    const clientId = `reuse-${Date.now()}`;
+    expect(
+      (await sa.emitWithAck('message:send', { conversationId: ab.id, text: 'x', clientId })).ok,
+    ).toBe(true);
+    const reused = await sa.emitWithAck('message:send', {
+      conversationId: ac.id,
+      text: 'y',
+      clientId,
+    });
+    expect(reused.ok).toBe(false);
+  });
+
+  it('disconnects a socket when its token expires', async () => {
+    const token = ctx.app
+      .get(JwtService)
+      .sign({ sub: a.user.id, username: a.user.username }, { expiresIn: 1 });
+    const s = await connect({ ...a, token });
+    const reason = await new Promise<string>((resolve) => s.once('disconnect', resolve));
+    expect(reason).toBe('io server disconnect');
   });
 
   it('marks a conversation read over the socket', async () => {
