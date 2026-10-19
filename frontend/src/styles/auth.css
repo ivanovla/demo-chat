@@ -1,0 +1,130 @@
+/* ---------- AuthForm ---------- */
+.auth {
+  height: 100%;
+  overflow-y: auto;
+  display: grid;
+  place-items: center;
+  padding: var(--space-10) var(--space-4);
+  background: var(--color-bg);
+}
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-8);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  box-shadow: var(--shadow-md);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+.logo-bg {
+  fill: var(--color-accent);
+}
+.logo-dot {
+  fill: #fff;
+}
+.logo-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 2;
+}
+.brand-name {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+}
+.auth-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.auth-title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.auth-sub {
+  margin: 0;
+  color: var(--color-text-2);
+  font-size: var(--fs-md);
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.auth-form .btn {
+  margin-top: var(--space-1);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.field-hint {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: 12.5px;
+  color: var(--color-text-3);
+}
+.field-error {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: var(--fw-medium);
+  color: var(--color-error);
+}
+.auth-switch {
+  margin: 0;
+  text-align: center;
+  color: var(--color-text-2);
+  font-size: var(--fs-base);
+}
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
+}
+.banner-error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+@media (max-width: 640px) {
+  .auth {
+    background: var(--color-surface);
+    place-items: start center;
+    padding: var(--space-8) var(--space-4);
+  }
+  .auth-card {
+    border: none;
+    box-shadow: none;
+    padding: var(--space-2) 0;
+  }
+}
