@@ -7,8 +7,6 @@
   import StoryViewer from '$lib/components/stories/StoryViewer.svelte';
   import { startRealtime } from '$lib/session';
   import { auth } from '$lib/stores/auth';
-  import { loadConversations } from '$lib/stores/conversations';
-  import { loadStories } from '$lib/stores/stories';
   import { recorderOpen, storyViewer } from '$lib/stores/ui';
 
   let { children } = $props();
@@ -22,8 +20,6 @@
       return;
     }
     startRealtime();
-    void loadConversations().catch(() => undefined);
-    void loadStories();
   });
 </script>
 

@@ -22,19 +22,45 @@ export function upsertConversation(list: Conversation[], conv: Conversation): Co
   );
 }
 
+export function mergeSnapshot(
+  local: Conversation[],
+  snapshot: Conversation[],
+  touched: Set<string>,
+): Conversation[] {
+  const byId = new Map(local.map((c) => [c.id, c]));
+  let merged = snapshot.map((s) => {
+    const l = byId.get(s.id);
+    return l && touched.has(s.id) && l.updatedAt >= s.updatedAt ? l : s;
+  });
+  for (const id of touched) {
+    const l = byId.get(id);
+    if (l && !snapshot.some((s) => s.id === id)) merged = upsertConversation(merged, l);
+  }
+  return [...merged].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+let touchedWhileLoading: Set<string> | null = null;
+
 export function setUnread(list: Conversation[], id: string, unreadCount: number): Conversation[] {
   return list.map((c) => (c.id === id ? { ...c, unreadCount } : c));
 }
 
 export async function loadConversations() {
   conversations.update((s) => ({ ...s, status: s.items.length ? s.status : 'loading' }));
+  const touched = new Set<string>();
+  touchedWhileLoading = touched;
   try {
-    const items = await conversationsApi.list();
-    trackUsers(items.map((c) => c.peer));
-    conversations.set({ items, status: 'ready' });
+    const snapshot = await conversationsApi.list();
+    trackUsers(snapshot.map((c) => c.peer));
+    conversations.update((s) => ({
+      items: mergeSnapshot(s.items, snapshot, touched),
+      status: 'ready',
+    }));
   } catch (err) {
     conversations.update((s) => ({ ...s, status: s.items.length ? s.status : 'error' }));
     throw err;
+  } finally {
+    if (touchedWhileLoading === touched) touchedWhileLoading = null;
   }
 }
 
@@ -47,6 +73,7 @@ export async function openConversationWith(userId: string): Promise<Conversation
 }
 
 export function storeConversation(conv: Conversation) {
+  touchedWhileLoading?.add(conv.id);
   trackUsers([conv.peer]);
   conversations.update((s) => ({ ...s, items: upsertConversation(s.items, conv) }));
 }
@@ -55,6 +82,7 @@ export function applyOwnMessage(message: Message) {
   conversations.update((s) => {
     const conv = s.items.find((c) => c.id === message.conversationId);
     if (!conv) return s;
+    touchedWhileLoading?.add(conv.id);
     const updated = { ...conv, lastMessage: message, updatedAt: message.createdAt };
     return { ...s, items: upsertConversation(s.items, updated) };
   });
@@ -63,6 +91,7 @@ export function applyOwnMessage(message: Message) {
 export function markConversationRead(id: string) {
   const conv = get(conversations).items.find((c) => c.id === id);
   if (!conv || conv.unreadCount === 0) return;
+  touchedWhileLoading?.add(id);
   conversations.update((s) => ({ ...s, items: setUnread(s.items, id, 0) }));
   const socket = getSocket();
   if (socket?.connected) socket.emit('conversation:read', { conversationId: id });

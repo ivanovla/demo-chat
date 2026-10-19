@@ -3,6 +3,7 @@
   import Composer from '$lib/components/chat/Composer.svelte';
   import ChatHeader from '$lib/components/chat/ChatHeader.svelte';
   import MessageList from '$lib/components/chat/MessageList.svelte';
+  import MessageSkeleton from '$lib/components/chat/MessageSkeleton.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
   import { auth } from '$lib/stores/auth';
   import {
@@ -61,13 +62,5 @@
     text="Check your connection and try again."
   />
 {:else}
-  <div class="messages">
-    <div class="messages-inner">
-      <div class="sk-messages" aria-hidden="true">
-        {#each ['theirs w-40', 'mine w-45', 'theirs w-55', 'mine w-30'] as cls, i (i)}<span
-            class="skeleton sk-bubble {cls}"
-          ></span>{/each}
-      </div>
-    </div>
-  </div>
+  <div class="messages"><div class="messages-inner"><MessageSkeleton /></div></div>
 {/if}

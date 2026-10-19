@@ -8,6 +8,7 @@
   import EmptyState from '../ui/EmptyState.svelte';
   import Icon from '../ui/Icon.svelte';
   import MessageBubble from './MessageBubble.svelte';
+  import MessageSkeleton from './MessageSkeleton.svelte';
 
   let {
     conversationId,
@@ -15,16 +16,6 @@
     meId,
     peer,
   }: { conversationId: string; thread: Thread; meId: string; peer: User } = $props();
-
-  const skeleton = [
-    'theirs w-40',
-    'theirs w-25',
-    'mine w-45',
-    'theirs w-55',
-    'mine w-30',
-    'mine w-50',
-    'theirs w-35',
-  ];
 
   let el = $state<HTMLDivElement>();
   const rows = $derived(buildRows(thread.items, meId, $now));
@@ -74,9 +65,7 @@
 >
   <div class="messages-inner">
     {#if (thread.status === 'loading' || thread.status === 'idle') && thread.items.length === 0}
-      <div class="sk-messages" aria-hidden="true">
-        {#each skeleton as cls, i (i)}<span class="skeleton sk-bubble {cls}"></span>{/each}
-      </div>
+      <MessageSkeleton />
     {:else if thread.status === 'error'}
       <EmptyState
         icon="alert"

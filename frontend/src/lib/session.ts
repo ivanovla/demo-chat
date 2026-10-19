@@ -23,6 +23,7 @@ export function startRealtime() {
   const { token } = get(auth);
   if (!token) return;
   const socket = openSocket(token);
+  let loadedWithoutSocket = false;
 
   socket.on('connect', () => {
     markConnected();
@@ -34,8 +35,12 @@ export function startRealtime() {
   });
   socket.on('disconnect', () => markReconnecting());
   socket.on('connect_error', (err) => {
-    if (err.message === 'Unauthorized') logout();
-    else markReconnecting();
+    if (err.message === 'Unauthorized') return logout();
+    markReconnecting();
+    if (loadedWithoutSocket) return;
+    loadedWithoutSocket = true;
+    void loadConversations().catch(() => undefined);
+    void loadStories();
   });
   socket.on(
     'message:new',

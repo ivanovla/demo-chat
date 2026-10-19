@@ -3,15 +3,16 @@
   import { markStorySeen, stories } from '$lib/stores/stories';
   import { storyViewer } from '$lib/stores/ui';
   import { relAgo } from '$lib/utils/format';
+  import type { StoryGroup } from '$lib/types';
   import Avatar from '../ui/Avatar.svelte';
   import Icon from '../ui/Icon.svelte';
 
   let { queue }: { queue: string[] } = $props();
 
-  const groups = $derived(
+  const groups = untrack(() =>
     queue
       .map((id) => $stories.groups.find((g) => g.user.id === id))
-      .filter((g) => g && g.stories.length),
+      .filter((g): g is StoryGroup => !!g && g.stories.length > 0),
   );
 
   let ui = $state(0);

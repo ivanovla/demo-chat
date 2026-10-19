@@ -88,9 +88,20 @@ function patch(convId: string, fn: (t: Thread) => Thread) {
   threads.update((all) => ({ ...all, [convId]: fn(all[convId] ?? emptyThread()) }));
 }
 
-export async function loadThread(convId: string, force = false) {
-  const current = get(threads)[convId];
-  if (current && !force && (current.status === 'ready' || current.status === 'loading')) return;
+const inflight = new Map<string, Promise<void>>();
+
+export function loadThread(convId: string, force = false): Promise<void> {
+  const running = inflight.get(convId);
+  if (running && !force) return running;
+  if (!force && get(threads)[convId]?.status === 'ready') return Promise.resolve();
+  const request = fetchLatest(convId).finally(() => {
+    if (inflight.get(convId) === request) inflight.delete(convId);
+  });
+  inflight.set(convId, request);
+  return request;
+}
+
+async function fetchLatest(convId: string) {
   patch(convId, (t) => ({ ...t, status: t.items.length ? t.status : 'loading' }));
   try {
     const page = await conversationsApi.messages(convId);
@@ -173,5 +184,6 @@ export function invalidateThreads(except: string | null) {
 }
 
 export function resetThreads() {
+  inflight.clear();
   threads.set({});
 }
