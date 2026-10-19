@@ -45,7 +45,27 @@ describe('Stories', () => {
 
   it('rejects non-video uploads and missing files', async () => {
     await upload(a, 'image/png', 'pic.png').expect(400);
+    await upload(a, 'video/html', 'clip.html').expect(400);
     await ctx.http.post('/api/stories').set(bearer(a)).field('durationMs', '1000').expect(400);
+  });
+
+  it('removes the stored file when the request is rejected', async () => {
+    const dir = join(ctx.uploadDir, 'stories');
+    const before = readdirSync(dir).length;
+    await ctx.http
+      .post('/api/stories')
+      .set(bearer(a))
+      .field('durationMs', '999999')
+      .attach('video', Buffer.from('x'), { filename: 'clip.webm', contentType: 'video/webm' })
+      .expect(400);
+    expect(readdirSync(dir)).toHaveLength(before);
+  });
+
+  it('answers 404 for missing media', async () => {
+    await ctx.http.get('/media/stories/nope.webm').expect(404);
+    await ctx.http.get('/media/..%2f..%2fetc%2fpasswd').expect((res) => {
+      expect([403, 404]).toContain(res.status);
+    });
   });
 
   it('returns active stories grouped by user, mine first', async () => {
@@ -70,7 +90,9 @@ describe('Stories', () => {
   it('hides expired stories and cleans them up with their files', async () => {
     const stories = ctx.app.get<Model<Story>>(getModelToken(Story.name));
     const dir = join(ctx.uploadDir, 'stories');
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     writeFileSync(join(dir, 'old.webm'), 'x');
+    utimesSync(join(dir, 'old.webm'), twoHoursAgo, twoHoursAgo);
     const expired = await stories.create({
       userId: new Types.ObjectId(a.user.id),
       filename: 'old.webm',
@@ -81,7 +103,6 @@ describe('Stories', () => {
     });
     const orphan = join(dir, 'orphan.webm');
     writeFileSync(orphan, 'x');
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     utimesSync(orphan, twoHoursAgo, twoHoursAgo);
 
     const feed = (await ctx.http.get('/api/stories').set(bearer(b)).expect(200)).body;

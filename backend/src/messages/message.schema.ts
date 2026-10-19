@@ -21,3 +21,7 @@ export class Message {
 export type MessageDocument = HydratedDocument<Message>;
 export const MessageSchema = SchemaFactory.createForClass(Message);
 MessageSchema.index({ conversationId: 1, _id: -1 });
+MessageSchema.index(
+  { senderId: 1, clientId: 1 },
+  { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } },
+);

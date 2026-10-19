@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, NotFoundException, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, UnauthorizedException, Post } from '@nestjs/common';
 import { AuthUser, CurrentUser } from '../common/current-user.decorator';
 import { Public } from '../common/public.decorator';
 import { UserDto } from '../users/user.dto';
@@ -29,7 +29,7 @@ export class AuthController {
   @Get('me')
   async me(@CurrentUser() me: AuthUser): Promise<UserDto> {
     const user = await this.users.findById(me.id);
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new UnauthorizedException('Account no longer exists');
     return this.users.toDto(user, true);
   }
 }

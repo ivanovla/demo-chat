@@ -12,13 +12,12 @@ export const storiesDir = (uploadDir: string) => join(uploadDir, 'stories');
 
 export const baseMime = (mime: string) => mime.split(';')[0].trim().toLowerCase();
 
-function extensionFor(mime: string): string {
-  const base = baseMime(mime);
-  if (base.includes('mp4')) return 'mp4';
-  if (base.includes('quicktime')) return 'mov';
-  if (base.includes('ogg')) return 'ogv';
-  return 'webm';
-}
+const EXTENSIONS: Record<string, string> = {
+  'video/webm': 'webm',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/ogg': 'ogv',
+};
 
 export function storyMulterOptions(uploadDir: string): MulterOptions {
   const destination = storiesDir(uploadDir);
@@ -26,12 +25,13 @@ export function storyMulterOptions(uploadDir: string): MulterOptions {
   return {
     storage: diskStorage({
       destination,
-      filename: (_req, file, cb) => cb(null, `${randomUUID()}.${extensionFor(file.mimetype)}`),
+      filename: (_req, file, cb) =>
+        cb(null, `${randomUUID()}.${EXTENSIONS[baseMime(file.mimetype)]}`),
     }),
     limits: { fileSize: MAX_STORY_BYTES, files: 1 },
     fileFilter: (_req, file, cb) => {
-      if (baseMime(file.mimetype).startsWith('video/')) cb(null, true);
-      else cb(new BadRequestException('Only video files are allowed'), false);
+      if (EXTENSIONS[baseMime(file.mimetype)]) cb(null, true);
+      else cb(new BadRequestException('Only WebM, MP4, MOV or OGG videos are allowed'), false);
     },
   };
 }

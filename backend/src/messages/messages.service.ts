@@ -1,18 +1,23 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
+import { isDuplicateKeyError } from '../common/errors';
 import { ConversationsService } from '../conversations/conversations.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { MessageDto } from './message.dto';
 import { Message, MessageDocument } from './message.schema';
 
 @Injectable()
-export class MessagesService {
+export class MessagesService implements OnModuleInit {
   constructor(
     @InjectModel(Message.name) private readonly messages: Model<Message>,
     private readonly conversations: ConversationsService,
     private readonly realtime: RealtimeService,
   ) {}
+
+  async onModuleInit() {
+    await this.messages.init();
+  }
 
   async send(
     meId: string,
@@ -23,13 +28,25 @@ export class MessagesService {
     const body = text.trim();
     if (!body) throw new BadRequestException('Message cannot be empty');
     const conv = await this.conversations.getForParticipant(conversationId, meId);
+    const senderId = new Types.ObjectId(meId);
 
-    const message = await this.messages.create({
-      conversationId: conv._id,
-      senderId: new Types.ObjectId(meId),
-      text: body,
-      clientId,
-    });
+    const existing = clientId ? await this.messages.findOne({ senderId, clientId }).exec() : null;
+    if (existing) return this.toDto(existing);
+
+    let message: MessageDocument;
+    try {
+      message = await this.messages.create({
+        conversationId: conv._id,
+        senderId,
+        text: body,
+        clientId,
+      });
+    } catch (err) {
+      const duplicate =
+        isDuplicateKeyError(err) && (await this.messages.findOne({ senderId, clientId }).exec());
+      if (duplicate) return this.toDto(duplicate);
+      throw err;
+    }
     const updated = await this.conversations.applyMessage(conv, message);
     const dto = this.toDto(message);
 

@@ -13,6 +13,7 @@ export function configureApp(app: NestExpressApplication) {
     prefix: '/media',
     index: false,
     fallthrough: false,
+    setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
   });
   app.enableShutdownHooks();
 }

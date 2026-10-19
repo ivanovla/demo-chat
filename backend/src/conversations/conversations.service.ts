@@ -36,8 +36,15 @@ export class ConversationsService implements OnModuleInit {
       this.conversations
         .findOneAndUpdate(
           { key },
-          { $setOnInsert: { key, participants: participants.map((id) => new Types.ObjectId(id)) } },
-          { upsert: true, new: true },
+          {
+            $setOnInsert: {
+              key,
+              participants: participants.map((id) => new Types.ObjectId(id)),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          },
+          { upsert: true, new: true, timestamps: false },
         )
         .exec();
 
@@ -79,9 +86,9 @@ export class ConversationsService implements OnModuleInit {
     message: MessageDocument,
   ): Promise<ConversationDocument> {
     const recipientId = this.peerId(conv, message.senderId.toString());
-    const updated = await this.conversations
-      .findByIdAndUpdate(
-        conv._id,
+    await this.conversations
+      .updateOne(
+        { _id: conv._id, $or: [{ lastMessage: null }, { 'lastMessage.id': { $lt: message._id } }] },
         {
           $set: {
             lastMessage: {
@@ -91,9 +98,14 @@ export class ConversationsService implements OnModuleInit {
               createdAt: message.createdAt,
             },
           },
-          $inc: { [`unread.${recipientId}`]: 1 },
         },
-        { new: true },
+      )
+      .exec();
+    const updated = await this.conversations
+      .findByIdAndUpdate(
+        conv._id,
+        { $inc: { [`unread.${recipientId}`]: 1 } },
+        { new: true, timestamps: false },
       )
       .exec();
     return updated!;

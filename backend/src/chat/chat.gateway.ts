@@ -1,3 +1,4 @@
+import { HttpException, Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -22,6 +23,8 @@ type AuthedSocket = Socket & { data: { user: AuthUser } };
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+  private readonly logger = new Logger(ChatGateway.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly realtime: RealtimeService,
@@ -71,7 +74,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       );
       return { ok: true, message };
     } catch (err) {
-      return { ok: false, error: errorMessage(err) };
+      return this.fail(err);
     }
   }
 
@@ -82,7 +85,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       await this.conversations.markRead(dto.conversationId, socket.data.user.id);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: errorMessage(err) };
+      return this.fail(err);
     }
+  }
+
+  private fail(err: unknown) {
+    if (!(err instanceof HttpException)) this.logger.error(err instanceof Error ? err.stack : err);
+    return { ok: false, error: errorMessage(err) };
   }
 }

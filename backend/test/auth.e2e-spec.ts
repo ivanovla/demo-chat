@@ -68,6 +68,13 @@ describe('Auth', () => {
     await ctx.http.get('/api/auth/me').set({ Authorization: 'Bearer garbage' }).expect(401);
   });
 
+  it('rejects a token of a user that no longer exists', async () => {
+    const u = await registerUser(ctx);
+    const { getModelToken } = await import('@nestjs/mongoose');
+    await ctx.app.get(getModelToken('User')).deleteOne({ _id: u.user.id });
+    await ctx.http.get('/api/auth/me').set(bearer(u)).expect(401);
+  });
+
   it('returns the current user', async () => {
     const u = await registerUser(ctx);
     const res = await ctx.http.get('/api/auth/me').set(bearer(u)).expect(200);

@@ -30,7 +30,8 @@ describe('Chat gateway', () => {
     });
 
   type Presence = { userId: string; online: boolean };
-  const presenceOf = (u: TestUser) => (p: Presence) => p.userId === u.user.id;
+  const presenceOf = (u: TestUser, online: boolean) => (p: Presence) =>
+    p.userId === u.user.id && p.online === online;
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -92,6 +93,55 @@ describe('Chat gateway', () => {
     expect(missing).toEqual({ ok: false, error: 'Conversation not found' });
   });
 
+  it('keeps outsiders out of other conversations', async () => {
+    const c = await registerUser(ctx);
+    const conv = (
+      await ctx.http
+        .post('/api/conversations')
+        .set(bearer(a))
+        .send({ userId: b.user.id })
+        .expect(201)
+    ).body;
+    const sc = await connect(c);
+    let leaked = false;
+    sc.on('message:new', () => (leaked = true));
+
+    const denied = await sc.emitWithAck('message:send', { conversationId: conv.id, text: 'hi' });
+    expect(denied).toEqual({ ok: false, error: 'You are not a participant of this conversation' });
+
+    const sa = await connect(a);
+    await sa.emitWithAck('message:send', { conversationId: conv.id, text: 'private' });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(leaked).toBe(false);
+  });
+
+  it('treats a repeated clientId as the same message', async () => {
+    const conv = (
+      await ctx.http
+        .post('/api/conversations')
+        .set(bearer(a))
+        .send({ userId: b.user.id })
+        .expect(201)
+    ).body;
+    const sa = await connect(a);
+    const payload = { conversationId: conv.id, text: 'once', clientId: `retry-${Date.now()}` };
+    const first = await sa.emitWithAck('message:send', payload);
+    const second = await sa.emitWithAck('message:send', payload);
+    expect(second.message.id).toBe(first.message.id);
+
+    const page = (
+      await ctx.http.get(`/api/conversations/${conv.id}/messages`).set(bearer(b)).expect(200)
+    ).body;
+    expect(
+      page.items.filter((m: { clientId?: string }) => m.clientId === payload.clientId),
+    ).toHaveLength(1);
+    const list = (await ctx.http.get('/api/conversations').set(bearer(b)).expect(200)).body;
+    const before = list.find((x: { id: string }) => x.id === conv.id).unreadCount;
+    await sa.emitWithAck('message:send', payload);
+    const after = (await ctx.http.get('/api/conversations').set(bearer(b)).expect(200)).body;
+    expect(after.find((x: { id: string }) => x.id === conv.id).unreadCount).toBe(before);
+  });
+
   it('marks a conversation read over the socket', async () => {
     const conv = (
       await ctx.http
@@ -114,14 +164,14 @@ describe('Chat gateway', () => {
 
   it('broadcasts presence and reports online users', async () => {
     const sb = await connect(b);
-    const online = once<Presence>(sb, 'presence', presenceOf(a));
+    const online = once<Presence>(sb, 'presence', presenceOf(a, true));
     const sa = await connect(a);
     expect(await online).toEqual({ userId: a.user.id, online: true });
 
     const users = (await ctx.http.get('/api/users').set(bearer(b)).expect(200)).body;
     expect(users.find((u: { id: string }) => u.id === a.user.id).online).toBe(true);
 
-    const offline = once<Presence>(sb, 'presence', presenceOf(a));
+    const offline = once<Presence>(sb, 'presence', presenceOf(a, false));
     sa.disconnect();
     expect(await offline).toEqual({ userId: a.user.id, online: false });
   });

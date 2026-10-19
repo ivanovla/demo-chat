@@ -90,6 +90,17 @@ describe('Conversations & messages', () => {
     expect(list.map((x: { id: string }) => x.id)).toEqual([ab.id, ac.id]);
   });
 
+  it('does not reorder conversations when an existing one is reopened', async () => {
+    const e = await registerUser(ctx);
+    const f = await registerUser(ctx);
+    const ae = await open(a, e);
+    const af = await open(a, f);
+    await open(a, e);
+    const list = (await ctx.http.get('/api/conversations').set(bearer(a)).expect(200)).body;
+    const ids = list.map((x: { id: string }) => x.id);
+    expect(ids.indexOf(af.id)).toBeLessThan(ids.indexOf(ae.id));
+  });
+
   it('validates message text', async () => {
     const conv = await open(a, b);
     await ctx.http
